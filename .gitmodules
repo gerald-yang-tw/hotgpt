@@ -1,0 +1,3 @@
+[submodule "hotsos"]
+	path = hotsos
+	url = https://github.com/gerald-yang-tw/hotsos
