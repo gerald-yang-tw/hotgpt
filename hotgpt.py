@@ -5,19 +5,22 @@ import subprocess
 import yaml
 from keys import OPENAI_API_KEY
 from langchain.llms import OpenAI
-from langchain.chat_models import ChatOpenAI
+from langchain.chains import LLMChain
+from langchain.prompts import PromptTemplate
 
-llm = OpenAI(openai_api_key=OPENAI_API_KEY)
+llm = OpenAI(openai_api_key=OPENAI_API_KEY, temperature=.2, max_tokens=1800)
+KERNEL_TEMPLATE = """You are a kernel expert. Given the kernel calltraces, your job is to go through the calltraces and explain each line in detail
+and then analyze the calltraces, list suggestions and steps how to debug and all the possible solutions in bullet format.
+        Calltraces: {text}
+        Answer:
+"""
 
 UPLOAD_FOLDER = 'upload'
 EXTRACT_FOLDER = 'extract'
 SUMMARY_FOLDER = 'summary'
 
-if 'hotsos_text' not in st.session_state:
-        st.session_state['hotsos_text'] = ""
-
-if 'hotgpt_text' not in st.session_state:
-        st.session_state['hotgpt_text'] = ""
+if 'output_text' not in st.session_state:
+        st.session_state['output_text'] = ""
 
 st.set_page_config(page_title="HotGPT demo", page_icon=":robot:", layout="wide")
 
@@ -25,18 +28,19 @@ def button_hotsos():
     summary_file = st.session_state['summary_file']
     with open(summary_file, 'r') as file:
         result = yaml.safe_load(file)
-        output = str(result['kernel']['potential-issues']['KernelErrors']).lstrip('[\'').rstrip('\']').split('LLM PROMPT')[0]
-        st.session_state['hotsos_text'] = output
+        output = str(result['kernel']['potential-issues']['KernelErrors']).lstrip('[\'').rstrip('\']').split('LLM_PROMPT')[0]
+        st.session_state['output_text'] = output
 
 def button_hotgpt():
     summary_file = st.session_state['summary_file']
     with open(summary_file, 'r') as file:
         result = yaml.safe_load(file)
-        prompt = str(result['kernel']['potential-issues']['KernelErrors']).lstrip('[\'').rstrip('\']').split('LLM PROMPT')[1].rstrip('(origin=kernel.auto_scenario_check)')
-        st.session_state['hotgpt_text'] = 'thinking...'
-        output = llm.predict(prompt)
-        print(output)
-        st.session_state['hotgpt_text'] = output
+        calltrace = str(result['kernel']['potential-issues']['KernelErrors']).lstrip('[\'').rstrip('\']').split('LLM_PROMPT')[1].rstrip('(origin=kernel.auto_scenario_check)')
+        st.session_state['output_text'] = 'thinking...'
+        prompt_template = PromptTemplate(input_variables=["text"], template=KERNEL_TEMPLATE)
+        answer_chain = LLMChain(llm=llm, prompt=prompt_template)
+        answer = answer_chain.run(calltrace)
+        st.session_state['output_text'] = answer
 
 
 col1, col2, col3 = st.columns((3,3,3))
@@ -77,14 +81,11 @@ with col1:
             print('run hotsos')
             subprocess.call("hotsos --kernel --short -s --output-path " + summary_path + " " + extract_path, shell=True)
 
-st.write("")
-st.write("")
-st.button('Ask HotSOS', on_click = button_hotsos)
-hotsos_text = st.text_area("", key = 'hotsos_text')
+btn1, btn2, btn3 = st.columns((3,3,8))
+with btn1:
+    st.button('Ask HotSOS', on_click = button_hotsos)
 
-st.write("")
-st.write("")
-st.write("")
-st.write("")
-st.button('Ask HotGPT', on_click = button_hotgpt)
-hotgpt_text = st.text_area("", key = 'hotgpt_text')
+with btn2:
+    st.button('Ask HotGPT', on_click = button_hotgpt)
+
+st.text_area("", height = 500, key = 'output_text')
