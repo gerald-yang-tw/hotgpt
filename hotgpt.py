@@ -3,6 +3,11 @@ import tarfile
 import os
 import subprocess
 import yaml
+from keys import OPENAI_API_KEY
+from langchain.llms import OpenAI
+from langchain.chat_models import ChatOpenAI
+
+llm = OpenAI(openai_api_key=OPENAI_API_KEY)
 
 UPLOAD_FOLDER = 'upload'
 EXTRACT_FOLDER = 'extract'
@@ -27,8 +32,12 @@ def button_hotgpt():
     summary_file = st.session_state['summary_file']
     with open(summary_file, 'r') as file:
         result = yaml.safe_load(file)
-        prompt = str(result['kernel']['potential-issues']['KernelErrors']).lstrip('[\'').rstrip('\']').split('LLM PROMPT')[1]
-        st.session_state['hotgpt_text'] = prompt
+        prompt = str(result['kernel']['potential-issues']['KernelErrors']).lstrip('[\'').rstrip('\']').split('LLM PROMPT')[1].rstrip('(origin=kernel.auto_scenario_check)')
+        st.session_state['hotgpt_text'] = 'thinking...'
+        output = llm.predict(prompt)
+        print(output)
+        st.session_state['hotgpt_text'] = output
+
 
 col1, col2, col3 = st.columns((3,3,3))
 with col1:
@@ -56,13 +65,16 @@ with col1:
 
         if not os.path.exists(sosreport_path):
             with open(sosreport_path, "wb") as f:
+                print('upload sosreport')
                 f.write(uploaded_file.getvalue())
 
         if not os.path.exists(extract_path):
+            print('extract sosreport')
             tar = tarfile.open(sosreport_path, "r:xz")
             tar.extractall(EXTRACT_FOLDER)
 
         if not os.path.exists(summary_file):
+            print('run hotsos')
             subprocess.call("hotsos --kernel --short -s --output-path " + summary_path + " " + extract_path, shell=True)
 
 st.write("")
