@@ -8,9 +8,9 @@ from langchain.llms import OpenAI
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 
-llm = OpenAI(openai_api_key=OPENAI_API_KEY, temperature=.2, max_tokens=1800)
-KERNEL_TEMPLATE = """You are a kernel expert. Given the kernel calltraces, your job is to go through the calltraces and explain each line in detail
-and then analyze the calltraces, list suggestions and steps how to debug and all the possible solutions in bullet format.
+llm = OpenAI(openai_api_key=OPENAI_API_KEY, temperature=0.2, max_tokens=2000)
+KERNEL_TEMPLATE = """You are a kernel expert. Given the kernel calltraces, your job is to go through the calltraces and explain every line in detail
+and then analyze the calltraces, list steps how to debug and possible solutions in bullet format.
         Calltraces: {text}
         Answer:
 """
